@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Сертификат</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=Noto+Serif:wght@600&display=swap&subset=cyrillic,cyrillic-ext" rel="stylesheet">
+<style>
+  :root{
+    --bg:#eef2f6; --ink:#14233a; --muted:#5b6b80; --line:#c9d3df;
+    --card:#ffffff; --accent:#1d4ed8; --accent-ink:#ffffff; --ok:#0f7a4d; --err:#a63232;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0f1826; --ink:#e8eef7; --muted:#93a3b8; --line:#2a3a52;
+           --card:#16233a; --accent:#6d97ff; --accent-ink:#0b1424; --ok:#4fd197; --err:#ff8f8f; }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"Noto Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  main{width:100%; max-width:640px}
+  .lang{display:inline-flex; border:2px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:28px}
+  .lang button{
+    font:inherit; font-size:.95rem; font-weight:500; background:transparent; color:var(--muted);
+    border:0; border-radius:0; padding:8px 16px; cursor:pointer;
+  }
+  .lang button[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink); font-weight:700}
+  h1{
+    font-family:"Noto Serif",Georgia,serif; font-weight:600;
+    font-size:clamp(1.9rem,6vw,3rem); line-height:1.15; margin:0 0 12px; letter-spacing:-.01em;
+  }
+  .lead{color:var(--muted); margin:0 0 28px; font-size:1.05rem; line-height:1.5; max-width:52ch}
+  form.search{display:flex; gap:10px; flex-wrap:wrap}
+  input[type=search],input[type=password],input[type=text]{
+    flex:1 1 280px; min-width:0; font:inherit; font-size:1.1rem; color:var(--ink);
+    background:var(--card); border:2px solid var(--line); border-radius:10px; padding:16px 18px;
+  }
+  input::placeholder{color:var(--muted)}
+  input:focus{outline:none; border-color:var(--accent)}
+  .go,.btn{
+    font:inherit; font-weight:700; cursor:pointer; text-decoration:none; text-align:center;
+    background:var(--accent); color:var(--accent-ink); border:2px solid var(--accent);
+    border-radius:10px; padding:16px 26px; display:inline-block;
+  }
+  .btn.ghost{background:transparent; color:var(--accent)}
+  .btn.danger{background:transparent; color:var(--err); border-color:var(--err)}
+  .btn.small{padding:6px 12px; font-size:.9rem}
+  button:focus-visible,.btn:focus-visible,input:focus-visible{outline:3px solid var(--accent); outline-offset:3px}
+  button:disabled{opacity:.5; cursor:default}
+  #result{margin-top:24px}
+  .msg{padding:16px 18px; border-radius:10px; border:1px solid var(--line); background:var(--card); line-height:1.5}
+  .msg.err{border-color:var(--err); color:var(--err)}
+  .cert{
+    background:var(--card); border:1px solid var(--line); border-left:6px solid var(--ok);
+    border-radius:10px; padding:18px; margin-bottom:12px;
+  }
+  .cert b{display:block; font-size:1.15rem; margin-bottom:4px}
+  .cert span{color:var(--muted); font-size:.95rem}
+  .actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px}
+  .actions .btn{padding:12px 20px}
+  .hint{color:var(--muted); font-size:.9rem; margin-top:18px}
+  .adminlink{
+    font:inherit; font-size:.85rem; color:var(--muted); background:none; border:0;
+    padding:0; margin-top:36px; cursor:pointer; text-decoration:underline;
+  }
+
+  dialog{
+    width:min(560px,calc(100vw - 32px)); max-height:calc(100vh - 32px); overflow:auto;
+    background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:14px; padding:24px;
+  }
+  dialog::backdrop{background:rgba(10,20,35,.55)}
+  dialog h2{font-family:"Noto Serif",Georgia,serif; margin:0 0 16px; font-size:1.4rem}
+  .field{display:block; margin-bottom:12px}
+  .field small{display:block; color:var(--muted); margin-bottom:4px}
+  .field input{width:100%; padding:12px 14px; font-size:1rem}
+  .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px}
+  .row .go,.row .btn{padding:12px 20px}
+  .files{border:1px solid var(--line); border-radius:10px; max-height:260px; overflow:auto}
+  .files div{display:flex; justify-content:space-between; gap:10px; align-items:center; padding:8px 12px; border-bottom:1px solid var(--line)}
+  .files div:last-child{border-bottom:0}
+  .files span{overflow-wrap:anywhere}
+  .log{font-size:.9rem; line-height:1.6; margin:10px 0; max-height:140px; overflow:auto}
+  .log .ok{color:var(--ok)} .log .bad{color:var(--err)}
+  .total{color:var(--muted); font-size:.9rem; margin:14px 0 8px}
+  .note{color:var(--muted); font-size:.9rem; margin:8px 0}
+</style>
+</head>
+<body>
+<main>
+  <div class="lang" role="group" aria-label="Тіл / Язык">
+    <button type="button" data-lang="kk" aria-pressed="true">Қазақша</button>
+    <button type="button" data-lang="ru" aria-pressed="false">Русский</button>
+  </div>
+
+  <h1 data-i="title"></h1>
+  <p class="lead" data-i="lead"></p>
+
+  <form id="form" class="search" autocomplete="off">
+    <input id="q" type="search" required>
+    <button class="go" type="submit" data-i="btn"></button>
+  </form>
+
+  <div id="result" aria-live="polite"></div>
+  <p class="hint" data-i="hint"></p>
+  <button type="button" class="adminlink" id="adminOpen" data-i="adminLink"></button>
+</main>
+
+<dialog id="admin">
+  <h2 data-i="adminTitle"></h2>
+
+  <div id="viewLogin">
+    <form id="loginForm">
+      <label class="field"><small data-i="repoLabel"></small>
+        <input id="repo" type="text" placeholder="owner/repo" autocomplete="off" required></label>
+      <label class="field"><small data-i="tokenLabel"></small>
+        <input id="token" type="password" autocomplete="off" required></label>
+      <div class="row"><button class="go" type="submit" data-i="login"></button></div>
+    </form>
+    <div id="loginMsg" class="msg err" hidden></div>
+  </div>
+
+  <div id="viewPanel" hidden>
+    <div class="row">
+      <input id="pick" type="file" accept="application/pdf,.pdf" multiple>
+      <button class="go" id="uploadBtn" type="button" data-i="upload"></button>
+    </div>
+    <div class="log" id="log"></div>
+    <div class="note" data-i="publishNote"></div>
+    <div class="total" id="total"></div>
+    <div class="files" id="files"></div>
+  </div>
+
+  <div class="row" style="margin-top:18px; justify-content:flex-end">
+    <button class="btn ghost small" id="logout" type="button" data-i="logout" hidden></button>
+    <button class="btn ghost small" id="adminClose" type="button" data-i="close"></button>
+  </div>
+</dialog>
+
+<script>
+const I18N = {
+  kk: {
+    pageTitle:'Сертификатты алу', title:'Сертификатыңызды алыңыз',
+    lead:'Тіркелу кезінде көрсеткен тегіңіз бен атыңызды енгізіңіз. Сертификат дайын болса, оны жүктеп алуға болады.',
+    placeholder:'Мысалы: Иванов Иван Иванович', aria:'Тегі мен аты', btn:'Сертификатты іздеу',
+    hint:'Сөздердің реті маңызды емес. «е» және «ё» әріптері бірдей саналады.',
+    short:'Кемінде тегіңізді және атыңызды енгізіңіз.',
+    notFound:'Сертификат табылмады. Жазылуын тексеріңіз немесе ұйымдастырушыға хабарласыңыз.',
+    loadErr:'Сертификаттар тізімін жүктеу мүмкін болмады. Ұйымдастырушыға хабарлаңыз.',
+    ready:'Сертификат дайын', download:'PDF жүктеп алу', open:'Ашу',
+    adminLink:'Сертификаттарды жаңарту', adminTitle:'Сертификаттарды жаңарту',
+    repoLabel:'Репозиторий (иесі/атауы)', tokenLabel:'GitHub токені (әкімші құпиясөзі)',
+    login:'Кіру', badLogin:'Кіру мүмкін болмады. Токенді және репозиторийді тексеріңіз.',
+    upload:'Жүктеу', pickFirst:'Алдымен PDF файлдарды таңдаңыз.',
+    publishNote:'Өзгерістер сайтқа 1–2 минутта шығады.',
+    okUp:'жүктелді', failUp:'қате', badName:'файл атауы дұрыс емес', tooBig:'файл тым үлкен (25 МБ-тан артық)',
+    total:'Барлығы: ', del:'Жою', confirmDel:'Жойылсын ба: ',
+    logout:'Шығу', close:'Жабу', sessionEnd:'Сеанс аяқталды. Қайта кіріңіз.',
+    listUpdated:'Тізім жаңартылды'
+  },
+  ru: {
+    pageTitle:'Получить сертификат', title:'Получите свой сертификат',
+    lead:'Введите фамилию и имя так, как вы указывали при регистрации. Если сертификат подготовлен, его можно будет скачать.',
+    placeholder:'Например: Иванов Иван Иванович', aria:'Фамилия и имя', btn:'Найти сертификат',
+    hint:'Порядок слов не важен. Буквы «е» и «ё» считаются одинаковыми.',
+    short:'Введите как минимум фамилию и имя.',
+    notFound:'Сертификат не найден. Проверьте написание или обратитесь к организатору.',
+    loadErr:'Не удалось загрузить список сертификатов. Сообщите организатору.',
+    ready:'Сертификат готов', download:'Скачать PDF', open:'Открыть',
+    adminLink:'Обновить сертификаты', adminTitle:'Обновление сертификатов',
+    repoLabel:'Репозиторий (владелец/имя)', tokenLabel:'GitHub-токен (пароль администратора)',
+    login:'Войти', badLogin:'Не удалось войти. Проверьте токен и репозиторий.',
+    upload:'Загрузить', pickFirst:'Сначала выберите PDF-файлы.',
+    publishNote:'Изменения появятся на сайте через 1–2 минуты.',
+    okUp:'загружен', failUp:'ошибка', badName:'недопустимое имя файла', tooBig:'файл слишком большой (больше 25 МБ)',
+    total:'Всего: ', del:'Удалить', confirmDel:'Удалить: ',
+    logout:'Выйти', close:'Закрыть', sessionEnd:'Сеанс завершён. Войдите снова.',
+    listUpdated:'Список обновлён'
+  }
+};
+
+let lang = 'kk';
+try { const s = localStorage.getItem('lang'); if (s === 'ru' || s === 'kk') lang = s; } catch (e) {}
+const t = k => I18N[lang][k];
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------- список сертификатов (certificates/index.js) ---------- */
+function loadList(){
+  return new Promise(res => {
+    const s = document.createElement('script');
+    s.src = 'certificates/index.js?t=' + Math.floor(Date.now() / 60000);
+    s.onload = () => res(Array.isArray(window.CERTIFICATES));
+    s.onerror = () => res(false);
+    document.head.appendChild(s);
+  });
+}
+const listReady = loadList();
+
+/* ---------- поиск ---------- */
+const KK = {'ә':'а','і':'и','ң':'н','ғ':'г','ү':'у','ұ':'у','қ':'к','ө':'о','һ':'х','ё':'е'};
+const norm = s => s.normalize('NFC').toLowerCase().replace(/[әіңғүұқөһё]/g, c => KK[c])
+                   .replace(/[^\p{L}\p{N}\s-]/gu, ' ').replace(/\s+/g, ' ').trim();
+const tokens = s => norm(s).split(' ').filter(Boolean);
+
+let last = null;
+function render(){
+  const out = $('result');
+  if (!last) { out.innerHTML = ''; return; }
+  if (last.type === 'found') {
+    out.innerHTML = last.items.map(c => {
+      const url = 'certificates/' + encodeURIComponent(c.file);
+      return `<div class="cert"><b>${esc(c.name)}</b><span>${t('ready')}</span>
+        <div class="actions">
+          <a class="btn" href="${url}" download="${esc(c.file)}">${t('download')}</a>
+          <a class="btn ghost" href="${url}" target="_blank" rel="noopener">${t('open')}</a>
+        </div></div>`;
+    }).join('');
+  } else {
+    out.innerHTML = `<div class="msg err">${t(last.type)}</div>`;
+  }
+}
+
+$('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const ok = await listReady;
+  if (!ok) { last = {type:'loadErr'}; return render(); }
+  const q = tokens($('q').value);
+  if (q.length < 2) { last = {type:'short'}; return render(); }
+  const found = window.CERTIFICATES.filter(c => { const n = tokens(c.name); return q.every(w => n.includes(w)); });
+  last = found.length ? {type:'found', items:found} : {type:'notFound'};
+  render();
+});
+
+/* ---------- администратор через GitHub API ---------- */
+const GH = 'https://api.github.com';
+const dlg = $('admin');
+let repo = '', branch = '', token = '';
+let adminFiles = null;      // [{name, sha}]
+let indexSha = null;
+
+try {
+  repo = localStorage.getItem('repo') || '';
+  token = sessionStorage.getItem('tok') || '';
+  branch = sessionStorage.getItem('branch') || '';
+} catch (e) {}
+
+function guessRepo(){
+  const h = location.hostname;
+  if (!h.endsWith('.github.io')) return '';
+  const owner = h.split('.')[0];
+  const seg = location.pathname.split('/')[1];
+  return owner + '/' + (seg && !seg.includes('.') ? seg : h);
+}
+
+async function gh(path, opts = {}){
+  const headers = Object.assign({
+    Authorization: 'Bearer ' + token,
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28'
+  }, opts.headers || {});
+  const r = await fetch(GH + path, Object.assign({}, opts, {headers, cache:'no-store'}));
+  if (r.status === 401) { endSession(t('sessionEnd')); throw new Error('auth'); }
+  return r;
+}
+
+const certPath = name => `/repos/${repo}/contents/certificates/${encodeURIComponent(name)}`;
+
+function showView(){
+  const logged = !!token;
+  $('viewLogin').hidden = logged;
+  $('viewPanel').hidden = !logged;
+  $('logout').hidden = !logged;
+  if (logged) loadAdminList();
+}
+
+function endSession(msg){
+  token = ''; branch = '';
+  try { sessionStorage.removeItem('tok'); sessionStorage.removeItem('branch'); } catch (e) {}
+  adminFiles = null;
+  showView();
+  const m = $('loginMsg');
+  if (msg) { m.textContent = msg; m.hidden = false; } else m.hidden = true;
+}
+
+function renderAdminList(){
+  const box = $('files');
+  if (!adminFiles) { box.innerHTML = ''; $('total').textContent = ''; return; }
+  $('total').textContent = t('total') + adminFiles.length;
+  box.innerHTML = adminFiles.map((f, i) =>
+    `<div><span>${esc(f.name.replace(/\.pdf$/i, ''))}</span><button class="btn danger small" type="button" data-del="${i}">${t('del')}</button></div>`
+  ).join('');
+}
+
+async function fetchFolder(){
+  const r = await gh(`/repos/${repo}/contents/certificates?ref=${encodeURIComponent(branch)}`);
+  if (r.status === 404) { indexSha = null; return []; }
+  if (!r.ok) throw new Error('list');
+  const arr = await r.json();
+  const idx = arr.find(f => f.name === 'index.js');
+  indexSha = idx ? idx.sha : null;
+  return arr.filter(f => f.type === 'file' && /\.pdf$/i.test(f.name))
+            .map(f => ({name: f.name.normalize('NFC'), sha: f.sha}))
+            .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+}
+
+async function loadAdminList(){
+  try { adminFiles = await fetchFolder(); renderAdminList(); } catch (e) {}
+}
+
+// пересоздаёт certificates/index.js по фактическому содержимому папки
+async function writeIndex(){
+  const files = await fetchFolder();
+  const items = files.map(f => ({name: f.name.replace(/\.pdf$/i, ''), file: f.name}));
+  const text = 'window.CERTIFICATES = ' + JSON.stringify(items, null, 1) + ';\n';
+  const body = {message: 'Update certificates list', content: btoa(unescape(encodeURIComponent(text))), branch};
+  if (indexSha) body.sha = indexSha;
+  const r = await gh(certPath('index.js'), {method:'PUT', body: JSON.stringify(body)});
+  if (!r.ok) throw new Error('index');
+  adminFiles = files;
+  const d = await r.json();
+  indexSha = d.content && d.content.sha;
+  renderAdminList();
+}
+
+function cleanName(n){
+  n = n.normalize('NFC').replace(/[\x00-\x1f<>:"|?*\\\/]/g, '').replace(/\s+/g, ' ').trim().replace(/^\.+/, '');
+  if (!/\.pdf$/i.test(n)) return null;
+  n = n.slice(0, -4).trim().slice(0, 150);
+  return n ? n + '.pdf' : null;
+}
+
+function toB64(file){
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+$('adminOpen').addEventListener('click', () => {
+  $('repo').value = repo || guessRepo();
+  $('loginMsg').hidden = true;
+  showView();
+  dlg.showModal();
+});
+$('adminClose').addEventListener('click', () => dlg.close());
+$('logout').addEventListener('click', () => endSession());
+
+$('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const m = $('loginMsg'); m.hidden = true;
+  const r0 = $('repo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/$/, '');
+  const tk = $('token').value.trim();
+  const fail = () => { m.textContent = t('badLogin'); m.hidden = false; };
+  if (!/^[\w.-]+\/[\w.-]+$/.test(r0) || !tk) return fail();
+  try {
+    const r = await fetch(`${GH}/repos/${r0}`, {headers:{Authorization:'Bearer ' + tk, Accept:'application/vnd.github+json'}, cache:'no-store'});
+    if (!r.ok) return fail();
+    const d = await r.json();
+    if (d.permissions && d.permissions.push === false) return fail();
+    repo = r0; token = tk; branch = d.default_branch;
+    try { localStorage.setItem('repo', repo); sessionStorage.setItem('tok', token); sessionStorage.setItem('branch', branch); } catch (e) {}
+    $('token').value = '';
+    showView();
+  } catch (err) { fail(); }
+});
+
+$('uploadBtn').addEventListener('click', async () => {
+  const files = [...$('pick').files];
+  const log = $('log');
+  if (!files.length) { log.innerHTML = `<div class="bad">${t('pickFirst')}</div>`; return; }
+  $('uploadBtn').disabled = true;
+  log.innerHTML = '';
+  let uploaded = 0;
+  try {
+    const known = new Map((adminFiles || []).map(f => [f.name, f.sha]));
+    for (const f of files) {
+      const line = document.createElement('div');
+      line.textContent = f.name + ' …';
+      log.appendChild(line);
+      const name = cleanName(f.name);
+      if (!name) { line.className = 'bad'; line.textContent = f.name + ' — ' + t('badName'); continue; }
+      if (f.size > 25 * 1024 * 1024) { line.className = 'bad'; line.textContent = f.name + ' — ' + t('tooBig'); continue; }
+      try {
+        const body = {message: 'Add certificate: ' + name, content: await toB64(f), branch};
+        if (known.has(name)) body.sha = known.get(name);
+        const r = await gh(certPath(name), {method:'PUT', body: JSON.stringify(body)});
+        if (!r.ok) throw new Error('put');
+        uploaded++;
+        line.className = 'ok'; line.textContent = name + ' — ' + t('okUp');
+      } catch (err) {
+        if (err.message === 'auth') throw err;
+        line.className = 'bad'; line.textContent = name + ' — ' + t('failUp');
+      }
+    }
+    if (uploaded) {
+      await writeIndex();
+      const done = document.createElement('div');
+      done.className = 'ok'; done.textContent = t('listUpdated');
+      log.appendChild(done);
+    }
+  } catch (err) {
+    if (err.message !== 'auth') {
+      const bad = document.createElement('div');
+      bad.className = 'bad'; bad.textContent = t('failUp');
+      log.appendChild(bad);
+    }
+  }
+  $('uploadBtn').disabled = false;
+  $('pick').value = '';
+});
+
+$('files').addEventListener('click', async e => {
+  const b = e.target.closest('[data-del]');
+  if (!b) return;
+  const f = adminFiles[+b.dataset.del];
+  if (!confirm(t('confirmDel') + f.name.replace(/\.pdf$/i, '') + '?')) return;
+  b.disabled = true;
+  try {
+    const r = await gh(certPath(f.name), {method:'DELETE',
+      body: JSON.stringify({message: 'Delete certificate: ' + f.name, sha: f.sha, branch})});
+    if (!r.ok) throw new Error('del');
+    await writeIndex();
+  } catch (err) { b.disabled = false; }
+});
+
+/* ---------- язык ---------- */
+function applyLang(){
+  document.documentElement.lang = lang;
+  document.title = t('pageTitle');
+  document.querySelectorAll('[data-i]').forEach(el => el.textContent = t(el.dataset.i));
+  $('q').placeholder = t('placeholder');
+  $('q').setAttribute('aria-label', t('aria'));
+  document.querySelectorAll('.lang button').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+  render();
+  renderAdminList();
+}
+document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click', () => {
+  lang = b.dataset.lang;
+  try { localStorage.setItem('lang', lang); } catch (e) {}
+  applyLang();
+}));
+
+applyLang();
+</script>
+</body>
+</html>
